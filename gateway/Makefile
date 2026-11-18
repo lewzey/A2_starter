@@ -1,4 +1,4 @@
-PYTHON ?= ../.venv/bin/python
+PYTHON ?= ../../.venv/bin/python
 
 gen:
 	mkdir -p generated
