@@ -3,9 +3,9 @@
   "event_service": "127.0.0.1:8081",
   "db": {
     "host": "127.0.0.1",
-    "port": 3306,
-    "user": "root",
-    "password": "",
+    "port": 3306
+    "user": "vha",
+    "password": "testing",
     "database": "registration_db"
   }
 }
