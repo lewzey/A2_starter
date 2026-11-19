@@ -1,4 +1,4 @@
-PYTHON ?= python3
+PYTHON ?= python
 
 install:
 	$(PYTHON) -m venv .venv
