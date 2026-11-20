@@ -1,4 +1,4 @@
-PYTHON ?= ../../.venv/bin/python
+PYTHON ?= ../.venv/bin/python
 MYSQL ?= mysql -h 127.0.0.1 -u vha -p
 
 gen:
