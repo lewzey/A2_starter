@@ -87,6 +87,10 @@ def list_bookings(event_id):
 
 @app.post("/api/v1/registrations")
 def book():
+    eventParticipantPair = request.get_json(silent = False)
+    event = eventParticipantPair.get("event_id")
+    participant = eventParticipantPair.get("participant_id")
+    jsonify(fields(registrations.RegisterBooking(registration_pb2.Booking(event_id = event, participant_id = participant))))
     abort(501, "TODO task 4: implement POST /api/v1/registrations")
 
 
