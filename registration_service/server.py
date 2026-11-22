@@ -58,18 +58,38 @@ class RegistrationService(rpc.RegistrationServiceServicer):
     #   allowing negative id?
     #   list_bookings?
     def RegisterBooking(self, request, context):
-        print(request.event_id)
-        event = call(self.events.GetEvent, event_pb2.EventId(event_id=request.event_id), context)
-        return pb.Empty()
         #check input
-        #check if event exist
-        #check if event is full
-        #check if participant exist
-        #check for duplicates
-        #   check for cancelled on dupes
+        event = call(self.events.GetEvent, event_pb2.EventId(event_id=request.event_id), context)
+        if (event.available_seats <= 0):
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Event is full")
+        participant = self.RetrieveParticipant(pb.ParticipantId(participant_id=request.participant_id), context)
+        duplicate = read(
+            """
+            SELECT booking_id, state 
+            FROM bookings 
+            WHERE event_id = %s
+            AND participant_id = %s
+            AND state = "confirmed" 
+            """,
+            (event.event_id, participant.participant_id,)
+        )
+        if (duplicate):
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Duplicate Registration")
         #create booking
         #add seat to event
         #return booking plus participant name
+        return pb.Empty()
+
+    def RetrieveParticipant(self, request, context):
+        participant = read(
+            """
+            SELECT participant_id, name 
+            FROM participants 
+            WHERE participant_id = %s
+            """,
+            (request.participant_id,)
+        )
+        return pb.Participant(**participant[0])
 
 events = event_pb2_grpc.EventServiceStub(grpc.insecure_channel(CONFIG["event_service"]))
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=8))

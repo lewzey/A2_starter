@@ -34,6 +34,7 @@ class EventService(rpc.EventServiceServicer):
         self.GetEvent(request, context)
         write("UPDATE events SET seats_taken = seats_taken - 1 WHERE event_id = %s", (request.event_id,))
         return pb.Empty()
+
     def ListEvents(self, request, context):
         if request.HasField("name") and request.name:
             found = read("""SELECT event_id, name, capacity,
