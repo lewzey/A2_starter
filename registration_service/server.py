@@ -45,12 +45,12 @@ class RegistrationService(rpc.RegistrationServiceServicer):
         return pb.Empty()
 
     
-    # Register Booking makes bookings for participants for events
+    # RegisterBooking makes bookings for participants for events
     # Input: 
     #   event_id: Id of desired event to be booked 
     #   participant_id: Id of person joining event
     # Output: 
-    #   (201, booking): success returns booking information
+    #   (201, booking): Success returns booking information
     #   (400): Invalid Input (empty input, wrong type, body is not valid)
     #   (404): Participant or Event does not exist
     #   (409): Full event or duplicate booking
@@ -75,11 +75,22 @@ class RegistrationService(rpc.RegistrationServiceServicer):
         )
         if (duplicate):
             context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Duplicate Registration")
-        #create booking
+        booking = write(
+            """
+            INSERT INTO bookings (event_id, participant_id)
+            VALUES(%s, %s)
+            """,
+            (event.event_id, participant.participant_id)
+        )
         #add seat to event
-        #return booking plus participant name
-        return pb.Empty()
-    
+        return pb.BookingInformation(booking_id = booking, event_id = event.event_id, participant_id = participant.participant_id, participant_name = participant.name)
+
+    # RetrieveParticipants gets information of desired participant
+    # Input: 
+    #   participant_id: ID of person joining event
+    # Output: 
+    #   (201, participant): Success returns participant ID and name
+    #   (404): Participant does not exist                               incomplete
     def RetrieveParticipant(self, request, context):
         participant = read(
             """

@@ -84,15 +84,13 @@ def get_participant(participant_id):
 def list_bookings(event_id):
     abort(501, "TODO task 4: implement GET /api/v1/events/<event_id>/registrations")
 
-
+#make it not return in alphabetical order?
 @app.post("/api/v1/registrations")
 def book():
     eventParticipantPair = request.get_json(silent = False)
     event = eventParticipantPair.get("event_id")
     participant = eventParticipantPair.get("participant_id")
-    jsonify(fields(registrations.RegisterBooking(registration_pb2.Booking(event_id = event, participant_id = participant))))
-    abort(501, "TODO task 4: implement POST /api/v1/registrations")
-
+    return(jsonify(fields(registrations.RegisterBooking(registration_pb2.Booking(event_id = event, participant_id = participant))))), 201
 
 @app.delete("/api/v1/registrations/<int:booking_id>")
 def cancel(booking_id):
