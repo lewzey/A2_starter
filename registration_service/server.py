@@ -79,7 +79,7 @@ class RegistrationService(rpc.RegistrationServiceServicer):
         #add seat to event
         #return booking plus participant name
         return pb.Empty()
-
+    
     def RetrieveParticipant(self, request, context):
         participant = read(
             """
