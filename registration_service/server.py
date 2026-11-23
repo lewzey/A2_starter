@@ -45,7 +45,7 @@ class RegistrationService(rpc.RegistrationServiceServicer):
         return pb.Empty()
 
     
-    # RegisterBooking makes bookings for participants for events
+    # CreateBooking makes bookings for participants for events
     # Input: 
     #   event_id: Id of desired event to be booked 
     #   participant_id: Id of person joining event
@@ -55,14 +55,13 @@ class RegistrationService(rpc.RegistrationServiceServicer):
     #   (404): Participant or Event does not exist
     #   (409): Full event or duplicate booking
     #   
-    #   allowing negative id?
-    #   list_bookings?
-    def RegisterBooking(self, request, context):
-        #check input
-        event = call(self.events.GetEvent, event_pb2.EventId(event_id=request.event_id), context)
-        if (event.available_seats <= 0):
-            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Event is full")
-        participant = self.RetrieveParticipant(pb.ParticipantId(participant_id=request.participant_id), context)
+    # Checks participants before event: so if both event and participant id are wrong will flag participant only.
+    #
+    # error 400 incomplete (use isinstance() probably)   
+    # allowing negative id?
+    def CreateBooking(self, request, context):        
+        participant = self.GetParticipant(pb.ParticipantId(participant_id=request.participant_id), context)
+
         duplicate = read(
             """
             SELECT booking_id, state 
@@ -71,27 +70,30 @@ class RegistrationService(rpc.RegistrationServiceServicer):
             AND participant_id = %s
             AND state = "confirmed" 
             """,
-            (event.event_id, participant.participant_id,)
+            (request.event_id, participant.participant_id,)
         )
         if (duplicate):
             context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Duplicate Registration")
+        
+        call(self.events.ReserveSeat, event_pb2.EventId(event_id=request.event_id), context)
+        
         booking = write(
             """
             INSERT INTO bookings (event_id, participant_id)
             VALUES(%s, %s)
             """,
-            (event.event_id, participant.participant_id)
+            (request.event_id, participant.participant_id)
         )
-        #add seat to event
-        return pb.BookingInformation(booking_id = booking, event_id = event.event_id, participant_id = participant.participant_id, participant_name = participant.name)
+        
+        return pb.BookingInformation(booking_id = booking, event_id = request.event_id, participant_id = participant.participant_id, participant_name = participant.name)
 
-    # RetrieveParticipants gets information of desired participant
+    # GetParticipants gets information of desired participant
     # Input: 
-    #   participant_id: ID of person joining event
+    #   participant_id: ID of participant
     # Output: 
     #   (201, participant): Success returns participant ID and name
-    #   (404): Participant does not exist                               incomplete
-    def RetrieveParticipant(self, request, context):
+    #   (404): Participant does not exist
+    def GetParticipant(self, request, context):
         participant = read(
             """
             SELECT participant_id, name 
@@ -100,6 +102,8 @@ class RegistrationService(rpc.RegistrationServiceServicer):
             """,
             (request.participant_id,)
         )
+        if not participant:
+            context.abort(grpc.StatusCode.NOT_FOUND, "Participant not found")
         return pb.Participant(**participant[0])
 
 events = event_pb2_grpc.EventServiceStub(grpc.insecure_channel(CONFIG["event_service"]))

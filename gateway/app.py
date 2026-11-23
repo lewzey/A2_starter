@@ -77,20 +77,22 @@ def add_participant():
 
 @app.get("/api/v1/participants/<int:participant_id>")
 def get_participant(participant_id):
-    abort(501, "TODO task 3: implement GET /api/v1/participants/<participant_id>")
+    #if not isinstance(participant_id, int):
+    #    context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid Participant ID")
+    return jsonify(fields(registrations.GetParticipant(registration_pb2.ParticipantId(participant_id = participant_id)))), 200
 
 
 @app.get("/api/v1/events/<int:event_id>/registrations")
 def list_bookings(event_id):
     abort(501, "TODO task 4: implement GET /api/v1/events/<event_id>/registrations")
 
-#make it not return in alphabetical order?
+#make it not return in alphabetical order this one is fine but what about other functions?
 @app.post("/api/v1/registrations")
 def book():
     eventParticipantPair = request.get_json(silent = False)
     event = eventParticipantPair.get("event_id")
     participant = eventParticipantPair.get("participant_id")
-    return(jsonify(fields(registrations.RegisterBooking(registration_pb2.Booking(event_id = event, participant_id = participant))))), 201
+    return jsonify(fields(registrations.CreateBooking(registration_pb2.Booking(event_id = event, participant_id = participant)))), 201
 
 @app.delete("/api/v1/registrations/<int:booking_id>")
 def cancel(booking_id):

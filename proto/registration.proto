@@ -4,8 +4,8 @@ package campus.registrations.v1;
 
 service RegistrationService {
   rpc CancelBooking(BookingId) returns (Empty);
-  rpc RegisterBooking(Booking) returns (BookingInformation);
-  rpc RetrieveParticipant(ParticipantId) returns (Participant);
+  rpc CreateBooking(Booking) returns (BookingInformation);
+  rpc GetParticipant(ParticipantId) returns (Participant);
 }
 
 message BookingId { int64 booking_id = 1; }
