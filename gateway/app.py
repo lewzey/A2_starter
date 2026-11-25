@@ -66,6 +66,26 @@ def get_event(event_id):
 
 @app.post("/api/v1/events")
 def add_event():
+    """
+    Creates a new event
+
+    Request Body:
+        name (str): The name of the event
+        capacity (int): The maximum number of participants (must be a non-negative 32-bit integer)
+
+    Returns:
+        201: Successfully created event in JSON format
+
+    Errors:
+        400: Request body is not a valid JSON object
+        400: Name or capacity is missing
+        400: Name is not a string
+        400: Capacity is not a non-negative integer
+        400: Capacity exceeds the 32-bit integer limit
+
+    Validates the incoming JSON data, constructs a CreateEventRequest message, and sends it to the
+    gRPC event service. The response is then converted into JSON and returned to the client.
+    """
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):

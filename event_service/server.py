@@ -62,6 +62,24 @@ class EventService(rpc.EventServiceServicer):
             events=found
         )
     def CreateEvent(self, request, context):
+        """
+        Creates a new event and stores it in the database
+
+        Args:
+            request (CreateEventRequest): Contains the event name and capacity
+            context: The gRPC context used for error handling
+
+        Returns:
+            Event: The newly created event
+
+        Errors:
+            INVALID_ARGUMENT: Event name is blank
+            INVALID_ARGUMENT: Event capacity is not positive
+            ALREADY_EXISTS: An event with the same name already exists
+
+        Validates the incoming request, inserts the event into the database, and retrieves 
+        the newly created event using GetEvent().
+        """
         if not request.name.strip():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Event name is required")
 
