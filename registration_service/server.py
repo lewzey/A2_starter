@@ -56,8 +56,7 @@ class RegistrationService(rpc.RegistrationServiceServicer):
     #   (409): Full event or duplicate booking
     #   
     # Checks participants before event: so if both event and participant id are wrong will flag participant only.
-    #
-    # error 400 incomplete (use isinstance() probably)   
+    # error 400 done outside of function
     # allowing negative id?
     def CreateBooking(self, request, context):        
         participant = self.GetParticipant(pb.ParticipantId(participant_id=request.participant_id), context)

@@ -77,8 +77,6 @@ def add_participant():
 
 @app.get("/api/v1/participants/<int:participant_id>")
 def get_participant(participant_id):
-    #if not isinstance(participant_id, int):
-    #    context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid Participant ID")
     return jsonify(fields(registrations.GetParticipant(registration_pb2.ParticipantId(participant_id = participant_id)))), 200
 
 
@@ -87,9 +85,18 @@ def list_bookings(event_id):
     abort(501, "TODO task 4: implement GET /api/v1/events/<event_id>/registrations")
 
 #make it not return in alphabetical order this one is fine but what about other functions?
+#does not check for negative numbers for ID
 @app.post("/api/v1/registrations")
 def book():
-    eventParticipantPair = request.get_json(silent = False)
+    eventParticipantPair = request.get_json(silent = True)
+    if not isinstance(eventParticipantPair, dict):
+        abort(400, "Expected a JSON object")
+    if "event_id" not in eventParticipantPair or "participant_id" not in eventParticipantPair:
+        abort(400, "Event ID and Participant ID are required")
+    if not isinstance(eventParticipantPair["event_id"], int):
+        abort(400, "Event ID must be a number")
+    if not isinstance(eventParticipantPair["participant_id"], int):
+        abort(400, "Participant ID must be a number")
     event = eventParticipantPair.get("event_id")
     participant = eventParticipantPair.get("participant_id")
     return jsonify(fields(registrations.CreateBooking(registration_pb2.Booking(event_id = event, participant_id = participant)))), 201
