@@ -131,6 +131,26 @@ class RegistrationService(rpc.RegistrationServiceServicer):
             context.abort(grpc.StatusCode.NOT_FOUND, "Participant not found")
         return pb.Participant(**participant[0])
 
+    def ListEventRegistrations(self, request, context):
+        registrations = read(
+            """
+            SELECT b.booking_id, b.event_id, b.participant_id, p.name AS participant_name
+            FROM bookings b
+            JOIN participants p
+                ON b.participant_id = p.participant_id
+            WHERE b.event_id = %s
+            AND b.state = 'confirmed'
+            """,
+            (request.event_id,)
+        )
+
+        return pb.ListEventRegistrationsResponse(
+            registrations=[
+                pb.BookingInformation(**registration)
+                for registration in registrations
+            ]
+        )
+
 events = event_pb2_grpc.EventServiceStub(grpc.insecure_channel(CONFIG["event_service"]))
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=8))
 rpc.add_RegistrationServiceServicer_to_server(RegistrationService(events), server)
