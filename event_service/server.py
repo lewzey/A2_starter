@@ -62,7 +62,25 @@ class EventService(rpc.EventServiceServicer):
             events=found
         )
     def CreateEvent(self, request, context):
-        if not request.name:
+        """
+        Creates a new event and stores it in the database
+
+        Args:
+            request (CreateEventRequest): Contains the event name and capacity
+            context: The gRPC context used for error handling
+
+        Returns:
+            Event: The newly created event
+
+        Errors:
+            INVALID_ARGUMENT: Event name is blank
+            INVALID_ARGUMENT: Event capacity is not positive
+            ALREADY_EXISTS: An event with the same name already exists
+
+        Validates the incoming request, inserts the event into the database, and retrieves 
+        the newly created event using GetEvent().
+        """
+        if not request.name.strip():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Event name is required")
 
         if request.capacity <= 0:
@@ -77,6 +95,20 @@ class EventService(rpc.EventServiceServicer):
             context.abort(grpc.StatusCode.ALREADY_EXISTS, "Event already exists")
 
         return self.GetEvent(pb.EventId(event_id=event_id), context)
+    
+    def DeleteEvent(self, request, context):
+        # Reject non-positive IDs early (gateway <int:…> can still pass negatives)
+        if request.event_id <= 0:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid event ID")
+
+        found = read(
+            """SELECT event_id, capacity, seats_taken,
+                      capacity - seats_taken AS available_seats
+               FROM events WHERE event_id = %s""",
+            (request.event_id,),
+        )
+        if not found:
+            context.abort(grpc.StatusCode.NOT_FOUND, "Event not found")
 
     def PatchEvent(self, request, context):
         if request.event_id <= 0:
@@ -122,8 +154,8 @@ class EventService(rpc.EventServiceServicer):
                 expected = f"Bearer {CONFIG['staff_token']}"
                 authorization = request.headers.get("Authorization", "")
 
-                if authorization != expected:
-                    return json.jsonify({"error": "Unauthorized"}), 401
+        write("DELETE FROM events WHERE event_id = %s", (request.event_id,))
+        return pb.Empty()
 
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=8))
 rpc.add_EventServiceServicer_to_server(EventService(), server)

@@ -35,6 +35,14 @@ def manyfields(messages):
     return [fields(message) for message in messages]
 
 
+@app.before_request
+def require_staff_token():
+    if request.endpoint in {"add_event", "edit_event", "delete_event"}:
+        authorization = request.headers.get("Authorization", "")
+        if authorization != f"Bearer {CONFIG['staff_token']}":
+            abort(401, "Staff token required")
+
+
 @app.errorhandler(grpc.RpcError)
 def rpc_error(error):
     return jsonify(error=error.details()), STATUS.get(error.code(), 500)
@@ -58,9 +66,45 @@ def get_event(event_id):
 
 @app.post("/api/v1/events")
 def add_event():
-    data = request.get_json()
+    """
+    Creates a new event
 
-    event = event_pb2.CreateEventRequest(**data)
+    Request Body:
+        name (str): The name of the event
+        capacity (int): The maximum number of participants (must be a non-negative 32-bit integer)
+
+    Returns:
+        201: Successfully created event in JSON format
+
+    Errors:
+        400: Request body is not a valid JSON object
+        400: Name or capacity is missing
+        400: Name is not a string
+        400: Capacity is not a non-negative integer
+        400: Capacity exceeds the 32-bit integer limit
+
+    Validates the incoming JSON data, constructs a CreateEventRequest message, and sends it to the
+    gRPC event service. The response is then converted into JSON and returned to the client.
+    """
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        abort(400, "Expected a JSON object")
+    if "name" not in data or "capacity" not in data:
+        abort(400, "Name and capacity are required")
+    if not isinstance(data["name"], str):
+        abort(400, "Event name must be a string")
+
+    capacity = data["capacity"]
+    if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 0:
+        abort(400, "Capacity must be a non-negative integer")
+    if capacity > 2**31 - 1:
+        abort(400, "Capacity is too large")
+
+    event = event_pb2.CreateEventRequest(
+        name=data["name"],
+        capacity=capacity,
+    )
 
     result = events.CreateEvent(event)
 
@@ -74,7 +118,10 @@ def edit_event(event_id):
 
 @app.delete("/api/v1/events/<int:event_id>")
 def delete_event(event_id):
-    abort(501, "TODO task 2: implement DELETE /api/v1/events/<event_id>")
+    events.DeleteEvent(
+        event_pb2.DeleteEventRequest(event_id=event_id)
+    )
+    return "", 204
 
 
 @app.post("/api/v1/participants")
@@ -106,9 +153,18 @@ def list_bookings(event_id):
     abort(501, "TODO task 4: implement GET /api/v1/events/<event_id>/registrations")
 
 #make it not return in alphabetical order this one is fine but what about other functions?
+#does not check for negative numbers for ID
 @app.post("/api/v1/registrations")
 def book():
-    eventParticipantPair = request.get_json(silent = False)
+    eventParticipantPair = request.get_json(silent = True)
+    if not isinstance(eventParticipantPair, dict):
+        abort(400, "Expected a JSON object")
+    if "event_id" not in eventParticipantPair or "participant_id" not in eventParticipantPair:
+        abort(400, "Event ID and Participant ID are required")
+    if not isinstance(eventParticipantPair["event_id"], int):
+        abort(400, "Event ID must be a number")
+    if not isinstance(eventParticipantPair["participant_id"], int):
+        abort(400, "Participant ID must be a number")
     event = eventParticipantPair.get("event_id")
     participant = eventParticipantPair.get("participant_id")
     return jsonify(fields(registrations.CreateBooking(registration_pb2.Booking(event_id = event, participant_id = participant)))), 201
