@@ -12,7 +12,7 @@ import registration_pb2_grpc
 CONFIG = json.load(open("config.json"))
 STATUS = {
     grpc.StatusCode.INVALID_ARGUMENT: 400,
-    grpc.StatusCode.UNAUTHENTICATED: 401, ## <-- New
+    grpc.StatusCode.UNAUTHENTICATED: 401,
     grpc.StatusCode.NOT_FOUND: 404,
     grpc.StatusCode.ALREADY_EXISTS: 409,
     grpc.StatusCode.RESOURCE_EXHAUSTED: 409,
@@ -113,7 +113,34 @@ def add_event():
 
 @app.patch("/api/v1/events/<int:event_id>")
 def edit_event(event_id):
-    abort(501, "TODO task 2: implement PATCH /api/v1/events/<event_id>")
+    data = request.get_json(silent=True)
+
+    if (not isinstance(data, dict)):
+        abort(400, "Expected a JSON object")
+    if ("name" not in data or "capacity" not in data):
+        abort(400, "Name and capacity are required")
+    if (not isinstance(data["name"], str)):
+        abort(400, "Event name must be a string")
+
+    capacity = data["capacity"]
+    if (isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 0):
+        abort(400, "Capacity must be a non-negative integer")
+    if capacity > 2**31 - 1:
+        abort(400, "Capacity is too large")
+
+    event = event_pb2.UpdateEventRequest(
+        event_id=event_id
+    )
+
+    if "name" in data:
+        event.name = data["name"]
+
+    if "capacity" in data:
+        event.capacity = data["capacity"]
+
+    result = events.UpdateEvent(event)
+
+    return jsonify(fields(result)), 200
 
 
 @app.delete("/api/v1/events/<int:event_id>")
@@ -126,7 +153,27 @@ def delete_event(event_id):
 
 @app.post("/api/v1/participants")
 def add_participant():
-    abort(501, "TODO task 3: implement POST /api/v1/participants")
+    data = request.get_json(silent=True)
+
+    if (not isinstance(data, dict)):
+        abort(400, "Expected a JSON object")
+
+    if ("name" not in data):
+        abort(400, "Name is required")
+
+    if (not isinstance(data["name"], str)):
+        abort(400, "Participant name must be a string")
+
+    if (not data["name"].strip()):
+        abort(400, "Participant name cannot be empty")
+
+    participant = registration_pb2.CreateParticipantRequest(
+        name=data["name"]
+    )
+
+    result = registrations.CreateParticipant(participant)
+
+    return jsonify(fields(result)), 201
 
 
 @app.get("/api/v1/participants/<int:participant_id>")
@@ -136,7 +183,11 @@ def get_participant(participant_id):
 
 @app.get("/api/v1/events/<int:event_id>/registrations")
 def list_bookings(event_id):
-    abort(501, "TODO task 4: implement GET /api/v1/events/<event_id>/registrations")
+    bookingRequest = registration_pb2.ListBookingsRequest(event_id=event_id)
+
+    result = registrations.ListBookings(bookingRequest)
+
+    return jsonify(manyfields(result.bookings)), 200
 
 #make it not return in alphabetical order this one is fine but what about other functions?
 #does not check for negative numbers for ID

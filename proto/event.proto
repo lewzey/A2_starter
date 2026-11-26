@@ -10,6 +10,7 @@ service EventService {
   rpc CreateEvent(CreateEventRequest) returns(Event);
   rpc PatchEvent(PatchEventRequest) returns(Event);
   rpc DeleteEvent(DeleteEventRequest) returns (Empty);
+  rpc ListBookingsRequest() returns ();
 }
 
 message EventId { int64 event_id = 1; }

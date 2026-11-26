@@ -61,6 +61,7 @@ class EventService(rpc.EventServiceServicer):
         return pb.ListEventsResponse(
             events=found
         )
+    
     def CreateEvent(self, request, context):
         """
         Creates a new event and stores it in the database
