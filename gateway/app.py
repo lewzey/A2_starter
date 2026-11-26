@@ -126,11 +126,25 @@ def delete_event(event_id):
 
 @app.post("/api/v1/participants")
 def add_participant():
-    abort(501, "TODO task 3: implement POST /api/v1/participants")
+    data = request.get_json(silent=True)
 
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid JSON body"}), 400
+
+    name = data.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({"error": "Participant name must be a non-empty string"}), 400
+
+    created = registrations.CreateParticipant(
+        registration_pb2.CreateParticipantRequest(name=name.strip())
+    )
+
+    return jsonify(fields(created)), 201
 
 @app.get("/api/v1/participants/<int:participant_id>")
 def get_participant(participant_id):
+    #if not isinstance(participant_id, int):
+    #    context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid Participant ID")
     return jsonify(fields(registrations.GetParticipant(registration_pb2.ParticipantId(participant_id = participant_id)))), 200
 
 
