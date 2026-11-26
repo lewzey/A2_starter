@@ -114,7 +114,7 @@ class EventService(rpc.EventServiceServicer):
         FAILED_PRECONDITION: Changed capacity lower than booked seats
 
     """
-        def UpdateEvent(self, request, context):
+    def UpdateEvent(self, request, context):
         if request.event_id <= 0:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid event ID")
 
