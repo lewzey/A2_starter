@@ -66,6 +66,26 @@ def get_event(event_id):
 
 @app.post("/api/v1/events")
 def add_event():
+    """
+    Creates a new event
+
+    Request Body:
+        name (str): The name of the event
+        capacity (int): The maximum number of participants (must be a non-negative 32-bit integer)
+
+    Returns:
+        201: Successfully created event in JSON format
+
+    Errors:
+        400: Request body is not a valid JSON object
+        400: Name or capacity is missing
+        400: Name is not a string
+        400: Capacity is not a non-negative integer
+        400: Capacity exceeds the 32-bit integer limit
+
+    Validates the incoming JSON data, constructs a CreateEventRequest message, and sends it to the
+    gRPC event service. The response is then converted into JSON and returned to the client.
+    """
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
@@ -123,7 +143,10 @@ def edit_event(event_id):
 
 @app.delete("/api/v1/events/<int:event_id>")
 def delete_event(event_id):
-    abort(501, "TODO task 2: implement DELETE /api/v1/events/<event_id>")
+    events.DeleteEvent(
+        event_pb2.DeleteEventRequest(event_id=event_id)
+    )
+    return "", 204
 
 
 @app.post("/api/v1/participants")
@@ -133,18 +156,29 @@ def add_participant():
 
 @app.get("/api/v1/participants/<int:participant_id>")
 def get_participant(participant_id):
-    abort(501, "TODO task 3: implement GET /api/v1/participants/<participant_id>")
+    return jsonify(fields(registrations.GetParticipant(registration_pb2.ParticipantId(participant_id = participant_id)))), 200
 
 
 @app.get("/api/v1/events/<int:event_id>/registrations")
 def list_bookings(event_id):
     abort(501, "TODO task 4: implement GET /api/v1/events/<event_id>/registrations")
 
-
+#make it not return in alphabetical order this one is fine but what about other functions?
+#does not check for negative numbers for ID
 @app.post("/api/v1/registrations")
 def book():
-    abort(501, "TODO task 4: implement POST /api/v1/registrations")
-
+    eventParticipantPair = request.get_json(silent = True)
+    if not isinstance(eventParticipantPair, dict):
+        abort(400, "Expected a JSON object")
+    if "event_id" not in eventParticipantPair or "participant_id" not in eventParticipantPair:
+        abort(400, "Event ID and Participant ID are required")
+    if not isinstance(eventParticipantPair["event_id"], int):
+        abort(400, "Event ID must be a number")
+    if not isinstance(eventParticipantPair["participant_id"], int):
+        abort(400, "Participant ID must be a number")
+    event = eventParticipantPair.get("event_id")
+    participant = eventParticipantPair.get("participant_id")
+    return jsonify(fields(registrations.CreateBooking(registration_pb2.Booking(event_id = event, participant_id = participant)))), 201
 
 @app.delete("/api/v1/registrations/<int:booking_id>")
 def cancel(booking_id):

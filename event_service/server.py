@@ -34,6 +34,19 @@ class EventService(rpc.EventServiceServicer):
         self.GetEvent(request, context)
         write("UPDATE events SET seats_taken = seats_taken - 1 WHERE event_id = %s", (request.event_id,))
         return pb.Empty()
+
+    # ReserveSeat check if there are seats in a event and if there is reserves the seat
+    # Input: 
+    #   event_id: Id of desired event to be booked
+    # Output: 
+    #   (Empty): Success event in database adds to seat taken
+    #   (409): Full event
+    def ReserveSeat(self, request, context):
+        if (self.GetEvent(request, context).available_seats <= 0):
+            context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, "Event is full")
+        write("UPDATE events SET seats_taken = seats_taken + 1 WHERE event_id = %s", (request.event_id,))
+        return pb.Empty()
+
     def ListEvents(self, request, context):
         if request.HasField("name") and request.name:
             found = read("""SELECT event_id, name, capacity,
@@ -49,6 +62,24 @@ class EventService(rpc.EventServiceServicer):
             events=found
         )
     def CreateEvent(self, request, context):
+        """
+        Creates a new event and stores it in the database
+
+        Args:
+            request (CreateEventRequest): Contains the event name and capacity
+            context: The gRPC context used for error handling
+
+        Returns:
+            Event: The newly created event
+
+        Errors:
+            INVALID_ARGUMENT: Event name is blank
+            INVALID_ARGUMENT: Event capacity is not positive
+            ALREADY_EXISTS: An event with the same name already exists
+
+        Validates the incoming request, inserts the event into the database, and retrieves 
+        the newly created event using GetEvent().
+        """
         if not request.name.strip():
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Event name is required")
 
@@ -83,7 +114,7 @@ class EventService(rpc.EventServiceServicer):
         FAILED_PRECONDITION: Changed capacity lower than booked seats
 
     """
-    def UpdateEvent(self, request, context):
+        def UpdateEvent(self, request, context):
         if request.event_id <= 0:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid event ID")
 
@@ -123,6 +154,30 @@ class EventService(rpc.EventServiceServicer):
             context.abort(grpc.StatusCode.ALREADY_EXISTS, "Event already exists")
 
         return self.GetEvent(pb.EventId(event_id=request.event_id), context)
+    
+    def DeleteEvent(self, request, context):
+        # Reject non-positive IDs early (gateway <int:…> can still pass negatives)
+        if request.event_id <= 0:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid event ID")
+
+        found = read(
+            """SELECT event_id, capacity, seats_taken,
+                      capacity - seats_taken AS available_seats
+               FROM events WHERE event_id = %s""",
+            (request.event_id,),
+        )
+        if not found:
+            context.abort(grpc.StatusCode.NOT_FOUND, "Event not found")
+
+        event = found[0]
+        if event["seats_taken"] > 0:
+            context.abort(
+                grpc.StatusCode.FAILED_PRECONDITION,
+                "Cannot delete event that still has bookings",
+            )
+
+        write("DELETE FROM events WHERE event_id = %s", (request.event_id,))
+        return pb.Empty()
 
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=8))
 rpc.add_EventServiceServicer_to_server(EventService(), server)
