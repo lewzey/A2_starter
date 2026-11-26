@@ -155,26 +155,6 @@ def delete_event(event_id):
 def add_participant():
     data = request.get_json(silent=True)
 
-    if (not isinstance(data, dict)):
-        abort(400, "Expected a JSON object")
-
-    if ("name" not in data):
-        abort(400, "Name is required")
-
-    if (not isinstance(data["name"], str)):
-        abort(400, "Participant name must be a string")
-
-    if (not data["name"].strip()):
-        abort(400, "Participant name cannot be empty")
-
-    participant = registration_pb2.CreateParticipantRequest(
-        name=data["name"]
-    )
-
-    result = registrations.CreateParticipant(participant)
-
-    return jsonify(fields(result)), 201
-
     if not isinstance(data, dict):
         return jsonify({"error": "Invalid JSON body"}), 400
 
